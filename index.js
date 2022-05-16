@@ -54,6 +54,37 @@ async function run() {
       }
     });
 
+    app.get('/allusers', verifyJWT, async (req, res) => {
+      const reuslt = await userCollection.find().toArray();
+      res.send(reuslt);
+    });
+
+    app.get('/admin/:email', async (req, res) => {
+      const email = req.params.email;
+      const user = await userCollection.findOne({ email: email });
+      const isAdmin = user.role === 'admin';
+      console.log(isAdmin);
+      res.send({ admin: isAdmin });
+    })
+
+    app.put('/user/admin/:email', verifyJWT, async (req, res) => {
+      const email = req.params.email;
+      const requester = req.decoded.email;
+      const requesterAccount = await userCollection.findOne({ email: requester });
+      if (requesterAccount.role === 'admin') {
+        const filter = { email: email };
+        const updatedDoc = {
+          $set: {
+            role: 'admin'
+          }
+        };
+        const result = await userCollection.updateOne(filter, updatedDoc);
+        res.send(result);
+      } else {
+        res.status(403).send({ message: 'Unauthorized' })
+      }
+    });
+
     app.put('/user/:email', async (req, res) => {
       const email = req.params.email;
       const user = req.body;
@@ -65,7 +96,8 @@ async function run() {
       const result = await userCollection.updateOne(filter, updatedDoc, options);
       const token = jwt.sign({ email: email }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' });
       res.send({ result, accessToken: token });
-    })
+    });
+
     app.get('/available', async (req, res) => {
       const date = req.query.date;
       // console.log(date);
